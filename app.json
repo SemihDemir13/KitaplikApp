@@ -1,11 +1,11 @@
 {
   "expo": {
-    "name": "ZihniHarita",
-    "slug": "ZihniHarita",
+    "name": "KitapligimApp",
+    "slug": "KitapligimApp",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "zihniharita",
+    "scheme": "KitapligimApp",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {

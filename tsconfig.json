@@ -1,17 +1,18 @@
+// C:/Users/yunus/KitapligimApp/tsconfig.json
 {
   "extends": "expo/tsconfig.base",
   "compilerOptions": {
     "strict": true,
     "paths": {
-      "@/*": [
-        "./*"
-      ]
+      "@/*": ["./src/*"] // Bu satırın doğru olduğundan emin olun
     }
   },
   "include": [
     "**/*.ts",
     "**/*.tsx",
     ".expo/types/**/*.ts",
-    "expo-env.d.ts"
+    "expo-env.d.ts",
+    "src" // Bu satırı ekleyin (veya "src/**/*.ts", "src/**/*.tsx")
   ]
+  // "exclude": ["node_modules", "babel.config.js", "metro.config.js", "jest.config.js"] // İsteğe bağlı
 }

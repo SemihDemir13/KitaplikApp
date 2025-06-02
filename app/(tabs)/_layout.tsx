@@ -1,10 +1,11 @@
+// app/(tabs)/_layout.tsx
 import { Tabs } from 'expo-router';
 import React from 'react';
 import { Platform } from 'react-native';
 
-import { HapticTab } from '@/components/HapticTab';
-import { IconSymbol } from '@/components/ui/IconSymbol';
-import TabBarBackground from '@/components/ui/TabBarBackground';
+import { HapticTab } from '@/components/HapticTab'; // Bu dosya şablonda var, kontrol edin
+import { IconSymbol } from '@/components/ui/IconSymbol'; // Bu dosya şablonda var, kontrol edin
+import TabBarBackground from '@/components/ui/TabBarBackground'; // Bu dosya şablonda var, kontrol edin
 import { Colors } from '@/constants/Colors';
 import { useColorScheme } from '@/hooks/useColorScheme';
 
@@ -15,29 +16,40 @@ export default function TabLayout() {
     <Tabs
       screenOptions={{
         tabBarActiveTintColor: Colors[colorScheme ?? 'light'].tint,
-        headerShown: false,
+        headerShown: true, // Başlıkları göstermek için true yapalım
         tabBarButton: HapticTab,
         tabBarBackground: TabBarBackground,
         tabBarStyle: Platform.select({
           ios: {
-            // Use a transparent background on iOS to show the blur effect
             position: 'absolute',
           },
           default: {},
         }),
       }}>
       <Tabs.Screen
-        name="index"
+        name="index" // Bu, app/(tabs)/index.tsx dosyasını işaret eder
         options={{
-          title: 'Home',
-          tabBarIcon: ({ color }) => <IconSymbol size={28} name="house.fill" color={color} />,
+          title: 'Kitaplığım', // Tab ve header başlığı
+          tabBarIcon: ({ color, focused }) => (
+            <IconSymbol
+              size={28}
+              name={focused ? 'house.fill' : 'house'} // SF Symbol isimleri
+              color={color}
+            />
+          ),
         }}
       />
       <Tabs.Screen
-        name="explore"
+        name="statistics" // Bu, app/(tabs)/statistics.tsx dosyasını işaret eder
         options={{
-          title: 'Explore',
-          tabBarIcon: ({ color }) => <IconSymbol size={28} name="paperplane.fill" color={color} />,
+          title: 'İstatistikler', // Tab ve header başlığı
+          tabBarIcon: ({ color, focused }) => (
+            <IconSymbol
+              size={28}
+              name={focused ? 'chart.bar.fill' : 'chart.bar'} // SF Symbol isimleri (MAPPING'e eklemeniz gerekebilir)
+              color={color}
+            />
+          ),
         }}
       />
     </Tabs>
