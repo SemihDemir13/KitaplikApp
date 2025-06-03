@@ -194,40 +194,50 @@ export default function AddBookScreen() {
         <TextInput
           style={[styles.input, inputStyle]}
           placeholder="Örn: Sefiller"
-          value={title}
-          onChangeText={setTitle}
+          placeholderTextColor={Colors[colorScheme ?? 'light'].icon}
+          value={title} // title state'ine bağlı
+          onChangeText={setTitle} // title state'ini günceller
         />
         {/* Diğer TextInput'ları da aynı şekilde ekleyin */}
-         <ThemedText style={styles.label}>Yazar Adı:</ThemedText>
+        <ThemedText style={styles.label}>Yazar Adı:</ThemedText>
         <TextInput
           style={[styles.input, inputStyle]}
           placeholder="Örn: Victor Hugo"
-          value={author}
-          onChangeText={setAuthor}
+          placeholderTextColor={Colors[colorScheme ?? 'light'].icon}
+          value={author} // author state'ine bağlı
+          onChangeText={setAuthor} // author state'ini günceller
         />
+
         <ThemedText style={styles.label}>Toplam Sayfa Sayısı:</ThemedText>
         <TextInput
           style={[styles.input, inputStyle]}
           placeholder="Örn: 350"
-          value={totalPages}
-          onChangeText={setTotalPages}
+          placeholderTextColor={Colors[colorScheme ?? 'light'].icon}
+          value={totalPages} // totalPages state'ine bağlı
+          onChangeText={setTotalPages} // totalPages state'ini günceller
           keyboardType="number-pad"
         />
-        <ThemedText style={styles.label}>Kapak Resmi URL'si (İsteğe Bağlı):</ThemedText>
+
+        <ThemedText style={styles.label}>Kapak Resmi URL'si (API'den veya manuel):</ThemedText>
         <TextInput
           style={[styles.input, inputStyle]}
           placeholder="https://ornek.com/kapak.jpg"
-          value={coverImageUrl}
-          onChangeText={setCoverImageUrl}
+          placeholderTextColor={Colors[colorScheme ?? 'light'].icon}
+          value={coverImageUrl} // coverImageUrl state'ine bağlı
+          onChangeText={setCoverImageUrl} // coverImageUrl state'ini günceller
           autoCapitalize="none"
         />
-        <ThemedText style={styles.label}>ISBN (İsteğe Bağlı):</ThemedText>
+
+        <ThemedText style={styles.label}>ISBN (API'den veya manuel):</ThemedText>
         <TextInput
           style={[styles.input, inputStyle]}
           placeholder="978-3-16-148410-0"
-          value={isbn}
-          onChangeText={setIsbn}
+          placeholderTextColor={Colors[colorScheme ?? 'light'].icon}
+          value={isbn} // isbn state'ine bağlı
+          onChangeText={setIsbn} // isbn state'ini günceller
+          keyboardType={Platform.OS === 'ios' ? 'numbers-and-punctuation' : 'default'}
         />
+
 
 
         <View style={styles.buttonContainer}>
@@ -253,12 +263,12 @@ const styles = StyleSheet.create({
   searchSection: { width: '100%', marginBottom: 20, borderBottomWidth: 1, borderBottomColor: '#eee', paddingBottom: 15 },
   searchRow: { flexDirection: 'row', alignItems: 'center', width: '100%' },
   searchInput: { flex: 1, marginRight: 10 },
-  searchResultsList: { maxHeight: 200, width: '100%', marginBottom: 20, borderWidth:1, borderColor:'#ddd', borderRadius: 8 },
+  searchResultsList: { maxHeight: 200, width: '100%', marginBottom: 20, borderWidth: 1, borderColor: '#ddd', borderRadius: 8 },
   searchResultItem: { flexDirection: 'row', padding: 10, borderBottomWidth: 1, borderBottomColor: '#eee', alignItems: 'center' },
   searchResultCover: { width: 40, height: 60, marginRight: 10, borderRadius: 4 },
   searchResultInfo: { flex: 1 },
   searchResultAuthor: { fontSize: 12, color: '#666', marginTop: 2 },
-  formFieldsTitle: { alignSelf: 'flex-start', fontSize: 18, fontWeight: 'bold', marginTop: 10, marginBottom: 10, width: '90%', marginLeft: '5%'},
+  formFieldsTitle: { alignSelf: 'flex-start', fontSize: 18, fontWeight: 'bold', marginTop: 10, marginBottom: 10, width: '90%', marginLeft: '5%' },
   label: { alignSelf: 'flex-start', marginLeft: '5%', marginBottom: 4, fontSize: 14, fontWeight: '500' },
   input: { width: '90%', height: 45, borderWidth: 1, borderRadius: 8, paddingHorizontal: 12, marginBottom: 15, fontSize: 16, alignSelf: 'center' },
   buttonContainer: { width: '90%', marginTop: 8, alignSelf: 'center' },
