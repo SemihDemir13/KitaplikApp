@@ -6,12 +6,14 @@ import {
   FlatList,
   StyleSheet,
   ActivityIndicator,
-  Button as RNButton, // RNButton olarak yeniden adlandırdık
+  Button as RNButton,
   TouchableOpacity,
   Alert,
-  Image, // Kapak resmi için
+  Image,
+  RefreshControl, // Pull-to-refresh için eklendi
+    Platform,
 } from 'react-native';
-import { Link, useRouter, useFocusEffect } from 'expo-router'; // Stack'i sildik, _layout.tsx'de handle ediliyor
+import { Link, useRouter, useFocusEffect } from 'expo-router';
 
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
@@ -19,38 +21,63 @@ import { Book } from '@/types/Book';
 import { getAllBooks, deleteBook } from '@/services/bookStorage';
 import { Colors } from '@/constants/Colors';
 import { useColorScheme } from '@/hooks/useColorScheme';
-// Opsiyonel: Eğer @expo/vector-icons'tan bir silme ikonu kullanmak isterseniz
-// import { MaterialIcons } from '@expo/vector-icons';
+import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs'; 
+
 
 export default function BookListScreen() {
   const router = useRouter();
   const colorScheme = useColorScheme();
   const [books, setBooks] = useState<Book[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false); // Pull-to-refresh için state
+    const tabBarHeight = useBottomTabBarHeight();
 
-  const fetchBooks = useCallback(async () => {
-    setIsLoading(true);
+
+  const loadBooks = useCallback(async (isRefresh = false) => {
+    console.log(`[loadBooks] çağrıldı. isRefresh: ${isRefresh}`);
+    if (!isRefresh) { // Sadece ilk yüklemede veya focus'ta true yap
+      setIsLoading(true);
+    } else {
+      setIsRefreshing(true); // Pull-to-refresh için
+    }
+
     try {
       const fetchedBooks = await getAllBooks();
-      // Kitapları eklenme tarihine göre yeniden eskiye sıralayalım
+      console.log(`[loadBooks] ${fetchedBooks.length} kitap yüklendi.`);
       fetchedBooks.sort((a, b) => new Date(b.addedDate).getTime() - new Date(a.addedDate).getTime());
       setBooks(fetchedBooks);
     } catch (error) {
-      console.error("Kitaplar yüklenirken hata oluştu:", error);
-      Alert.alert("Hata", "Kitaplar yüklenemedi. Lütfen uygulamayı yeniden başlatmayı deneyin.");
+      console.error("[loadBooks] Kitaplar yüklenirken hata oluştu:", error);
+      Alert.alert("Hata", "Kitaplar yüklenemedi.");
     } finally {
-      setIsLoading(false);
+      if (!isRefresh) {
+        setIsLoading(false);
+      } else {
+        setIsRefreshing(false);
+      }
+      console.log(`[loadBooks] yükleme tamamlandı.`);
     }
-  }, []);
+  }, []); // Bağımlılık dizisi boş, çünkü dışarıdan bir şeye bağlı değil, sadece çağrıldığında çalışıyor.
 
   // Ekran her odaklandığında kitapları yeniden yükle
   useFocusEffect(
     useCallback(() => {
-      fetchBooks();
-    }, [fetchBooks])
+      console.log("[useFocusEffect] Ekran odaklandı, kitaplar yükleniyor...");
+      loadBooks(); // loadBooks fonksiyonunu çağırıyoruz
+      return () => {
+        // İsteğe bağlı: Ekran odaktan çıktığında bir temizleme işlemi
+        console.log("[useFocusEffect] Ekran odaktan çıktı.");
+      };
+    }, [loadBooks]) // loadBooks bağımlılık olarak eklendi
   );
 
+  const onRefresh = useCallback(() => {
+    console.log("[onRefresh] Pull-to-refresh tetiklendi.");
+    loadBooks(true); // Refresh olduğunu belirt
+  }, [loadBooks]); // loadBooks bağımlılık olarak eklendi
+
   const handleDeleteBook = (id: string, title: string) => {
+    console.log(`[handleDeleteBook] Fonksiyon çağrıldı - ID: ${id}, Başlık: ${title}`);
     Alert.alert(
       "Kitabı Sil",
       `"${title}" adlı kitabı silmek istediğinizden emin misiniz?`,
@@ -60,10 +87,11 @@ export default function BookListScreen() {
           text: "Sil",
           style: "destructive",
           onPress: async () => {
+            console.log(`[handleDeleteBook] Alert içindeki Sil'e basıldı - ID: ${id}`);
             const success = await deleteBook(id);
             if (success) {
               Alert.alert("Başarılı", `"${title}" adlı kitap silindi.`);
-              fetchBooks(); // Listeyi yenile
+              loadBooks(); // Listeyi yenilemek için loadBooks'u çağır
             } else {
               Alert.alert("Hata", "Kitap silinirken bir sorun oluştu.");
             }
@@ -93,13 +121,12 @@ export default function BookListScreen() {
         </View>
       </TouchableOpacity>
       <TouchableOpacity onPress={() => handleDeleteBook(item.id, item.title)} style={styles.deleteButton}>
-        {/* <MaterialIcons name="delete-outline" size={24} color={Colors.light.tint} /> */}
         <ThemedText style={{ color: Colors[colorScheme ?? 'light'].tint, fontSize: 14 }}>Sil</ThemedText>
       </TouchableOpacity>
     </ThemedView>
   );
 
-  if (isLoading) {
+  if (isLoading && books.length === 0) { // Sadece ilk yüklemede ve hiç kitap yokken göster
     return (
       <ThemedView style={styles.centered}>
         <ActivityIndicator size="large" color={Colors[colorScheme ?? 'light'].tint} />
@@ -107,12 +134,18 @@ export default function BookListScreen() {
       </ThemedView>
     );
   }
+   const dynamicAddButtonContainerStyle = {
+    position: 'absolute' as 'absolute', // TypeScript için tip belirtmek gerekebilir
+    bottom: tabBarHeight + 10, // Tab bar'ın 10 piksel üzeri
+    left: 20,
+    right: 20,
+    paddingVertical: Platform.OS === 'ios' ? 10 : 5, // iOS'ta biraz daha padding gerekebilir
+                                                  // veya RNButton'u View ile sarıp padding'i View'e verin
+    zIndex: 1, // Gerekirse
+  };
 
   return (
     <ThemedView style={styles.container}>
-      {/* Header başlığı app/(tabs)/_layout.tsx dosyasından geliyor */}
-      {/* <Stack.Screen options={{ title: 'Kitaplığım' }} /> Bu satıra gerek yok */}
-
       {books.length === 0 && !isLoading ? (
         <ThemedView style={styles.centered}>
           <ThemedText style={styles.emptyText}>Kitaplığınızda hiç kitap bulunmuyor.</ThemedText>
@@ -124,16 +157,24 @@ export default function BookListScreen() {
           renderItem={renderBookItem}
           keyExtractor={(item) => item.id}
           contentContainerStyle={styles.listContentContainer}
-          ListHeaderComponent={ // Kitap sayısı ve ekleme butonu için bir başlık alanı
+          ListHeaderComponent={
             <View style={styles.listHeader}>
               <ThemedText>Toplam {books.length} kitap</ThemedText>
             </View>
           }
+          refreshControl={ // Pull-to-refresh eklendi
+            <RefreshControl
+              refreshing={isRefreshing}
+              onRefresh={onRefresh}
+              tintColor={Colors[colorScheme ?? 'light'].tint} // iOS için
+              colors={[Colors[colorScheme ?? 'light'].tint]} // Android için
+            />
+          }
+          // extraData={books} // Genellikle books referansı değiştiği için gerekmez, ama sorun devam ederse denenebilir.
         />
       )}
 
-      {/* "Yeni Kitap Ekle" Butonu ekranın altında sabit */}
-      <View style={styles.addButtonContainer}>
+        <View style={dynamicAddButtonContainerStyle}> {/* DİNAMİK STİLİ KULLANIN */}
         <Link href="/add-book" asChild>
           <RNButton title="Yeni Kitap Ekle" color={Colors[colorScheme ?? 'light'].tint} />
         </Link>
@@ -141,6 +182,7 @@ export default function BookListScreen() {
     </ThemedView>
   );
 }
+
 
 const styles = StyleSheet.create({
   container: {
@@ -150,12 +192,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 10,
     borderBottomWidth: 1,
-    borderBottomColor: '#eee', // Temaya göre ayarlanabilir
+    borderBottomColor: '#eee',
     marginBottom: 5,
   },
   listContentContainer: {
     paddingHorizontal: 10,
-    paddingBottom: 70, // Alttaki buton için yeterli boşluk bırak
+    paddingBottom: 100, // Buton ve tab bar için daha fazla boşluk
   },
   centered: {
     flex: 1,
@@ -170,27 +212,25 @@ const styles = StyleSheet.create({
   },
   emptySubText: {
     fontSize: 14,
-    color: '#888', // Temaya göre ayarlanabilir
+    color: '#888',
     textAlign: 'center',
   },
   bookItemOuterContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'transparent', // ThemedView'dan alacak
+    backgroundColor: 'transparent',
     marginVertical: 6,
-    marginHorizontal: 6, // Kenarlardan biraz boşluk
+    marginHorizontal: 6,
     borderRadius: 12,
     borderWidth: 1,
-    // iOS için gölge
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 3,
-    // Android için gölge
-    elevation: 3,
+    shadowOffset: { width: 0, height: 1 }, // Gölgeyi biraz azalttım
+    shadowOpacity: 0.08, // Gölgeyi biraz azalttım
+    shadowRadius: 2, // Gölgeyi biraz azalttım
+    elevation: 2, // Android için gölge
   },
   bookItemTouchable: {
-    flex: 1, // Sil butonuna yer bırakmak için
+    flex: 1,
     flexDirection: 'row',
     padding: 12,
     alignItems: 'center',
@@ -200,6 +240,7 @@ const styles = StyleSheet.create({
     height: 90,
     borderRadius: 4,
     marginRight: 12,
+    backgroundColor: '#e0e0e0', // Resim yüklenene kadar placeholder rengi
   },
   bookCoverPlaceholder: {
     width: 60,
@@ -214,32 +255,24 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   bookInfo: {
-    flex: 1, // Yazıların sığması için
+    flex: 1,
   },
   bookTitle: {
     fontSize: 17,
-    // fontWeight: 'bold', // type="defaultSemiBold" zaten kalın yapıyor
   },
   bookAuthor: {
     fontSize: 14,
-    // color: '#555', // ThemedText kendi rengini ayarlar
     marginTop: 2,
   },
   bookPages: {
     fontSize: 12,
-    // color: '#777', // ThemedText kendi rengini ayarlar
     marginTop: 4,
   },
   deleteButton: {
-    padding: 15, // Dokunma alanını artır
+    paddingHorizontal: 15, // Yatayda padding
+    paddingVertical: 20,  // Dikeyde padding (tıklama alanını artırmak için)
     justifyContent: 'center',
     alignItems: 'center',
   },
-  addButtonContainer: {
-    position: 'absolute',
-    bottom: 15, // Tab bar'a çok yakın olmaması için biraz yukarı
-    left: 20,
-    right: 20,
-    paddingVertical: 5, // Buttonun kendi iç boşluğu varsa bu azaltılabilir
-  },
+ 
 });

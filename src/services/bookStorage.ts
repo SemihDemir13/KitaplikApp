@@ -76,12 +76,31 @@ export const updateBook = async (id: string, updatedData: Partial<Omit<Book, 'id
 };
 
 // Bir kitabı silen fonksiyon
+// src/services/bookStorage.ts
+
+// ... (diğer importlar ve fonksiyonlar) ...
+
 export const deleteBook = async (id: string): Promise<boolean> => {
+      console.log(`deleteBook çağrıldı, ID: ${id}`); // <<-- EKLENECEK LOG
+
   try {
     let books = await getAllBooks();
-    const updatedBooks = books.filter(book => book.id !== id);
+    const initialLength = books.length;
+    const updatedBooks = books.filter(book => book.id !== id); // ID'si eşleşmeyeni filtrele
+
+    // Eğer hiçbir kitap silinmediyse (ID bulunamadıysa), yine de başarılı sayabiliriz veya false dönebiliriz.
+    // Genellikle, ID bulunamasa bile işlem "başarılı"dır çünkü sonuçta o ID'li kitap artık listede yoktur.
+    // Ama gerçekten bir silme olup olmadığını kontrol etmek isterseniz:
+    if (updatedBooks.length === initialLength) {
+      console.warn(`Silinecek kitap bulunamadı, ID: ${id}`);
+      // return false; // Eğer ID bulunamadığında hata olarak kabul etmek isterseniz.
+                     // Ancak genellikle bu durum bir hata değildir. Kullanıcı arayüzünde
+                     // zaten olmayan bir şeyi silmeye çalışıyor olabilir.
+    }
+
     await AsyncStorage.setItem(BOOKS_STORAGE_KEY, JSON.stringify(updatedBooks));
-    return true;
+    console.log(`Kitap silindi (veya bulunamadı): ${id}, kalan kitap sayısı: ${updatedBooks.length}`);
+    return true; // Her durumda (bulunamasa bile) true dönmek genellikle UI için daha basittir.
   } catch (e) {
     console.error("Kitap silinirken hata oluştu:", e);
     return false;

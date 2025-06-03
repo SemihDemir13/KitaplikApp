@@ -8,15 +8,19 @@ import { IconSymbol } from '@/components/ui/IconSymbol'; // Bu dosya şablonda v
 import TabBarBackground from '@/components/ui/TabBarBackground'; // Bu dosya şablonda var, kontrol edin
 import { Colors } from '@/constants/Colors';
 import { useColorScheme } from '@/hooks/useColorScheme';
+import { useRouter,Link } from 'expo-router'; 
+import { MaterialIcons } from '@expo/vector-icons';
+import { TouchableOpacity } from 'react-native'; // TouchableOpacity için
 
 export default function TabLayout() {
   const colorScheme = useColorScheme();
+  const router=useRouter();
 
-  return (
+ return (
     <Tabs
       screenOptions={{
         tabBarActiveTintColor: Colors[colorScheme ?? 'light'].tint,
-        headerShown: true, // Başlıkları göstermek için true yapalım
+        headerShown: true,
         tabBarButton: HapticTab,
         tabBarBackground: TabBarBackground,
         tabBarStyle: Platform.select({
@@ -27,31 +31,61 @@ export default function TabLayout() {
         }),
       }}>
       <Tabs.Screen
-        name="index" // Bu, app/(tabs)/index.tsx dosyasını işaret eder
+        name="index"
         options={{
-          title: 'Kitaplığım', // Tab ve header başlığı
+          title: 'Kitaplığım',
           tabBarIcon: ({ color, focused }) => (
             <IconSymbol
+              name={focused ? 'house.fill' : 'house'} // IconSymbol'unuza uygun isimler
               size={28}
-              name={focused ? 'house.fill' : 'house'} // SF Symbol isimleri
               color={color}
             />
+          ),
+          headerRight: () => (
+            <Link href="/settings" asChild>
+              <TouchableOpacity style={{ marginRight: 15, padding: 5 }}>
+                <IconSymbol
+                  name="gearshape" // Ayarlar ikonu için IconSymbol'unuza uygun bir isim
+                  size={26}
+                  color={Colors[colorScheme ?? 'light'].text}
+                />
+              </TouchableOpacity>
+            </Link>
           ),
         }}
       />
       <Tabs.Screen
-        name="statistics" // Bu, app/(tabs)/statistics.tsx dosyasını işaret eder
+        name="statistics"
         options={{
-          title: 'İstatistikler', // Tab ve header başlığı
+          title: 'İstatistikler',
           tabBarIcon: ({ color, focused }) => (
             <IconSymbol
+              name={focused ? 'chart.bar.fill' : 'chart.bar'} // IconSymbol'unuza uygun isimler
               size={28}
-              name={focused ? 'chart.bar.fill' : 'chart.bar'} // SF Symbol isimleri (MAPPING'e eklemeniz gerekebilir)
               color={color}
             />
           ),
         }}
       />
+      {/* İsteğe bağlı olarak Ayarlar için ayrı bir tab da eklenebilir: */}
+      
+      <Tabs.Screen
+        name="settings" // Bu, app/(tabs)/settings.tsx dosyasını gerektirir
+                       // Eğer ayarları tab olarak değil de stack ekranı olarak istiyorsanız
+                       // app/settings.tsx dosyasını kullanmaya devam edin ve headerRight'tan link verin.
+                       // Şu anki yapımızda ayarlar stack ekranı, bu yüzden bu yorumda kalmalı.
+        options={{
+          title: 'Ayarlar',
+          tabBarIcon: ({ color, focused }) => (
+            <IconSymbol
+              name={focused ? 'gearshape.fill' : 'gearshape'}
+              size={28}
+              color={color}
+            />
+          ),
+        }}
+      />
+      
     </Tabs>
   );
 }
