@@ -74,21 +74,30 @@ export default function AddBookScreen() {
   };
 
   const handleSearchBooks = async () => {
-    if (!searchTerm.trim()) {
-      Alert.alert("Arama Terimi Yok", "Lütfen aramak için bir kitap adı veya ISBN girin.");
-      return;
-    }
-    setIsSearching(true);
-    setApiError(null);
-    setSearchResults([]);
-    console.log(`[AddBookScreen] Google Books API aranıyor: ${searchTerm}`);
+     const trimmedSearchTerm = searchTerm.trim();
+  if (!trimmedSearchTerm) {
+    Alert.alert("Arama Terimi Yok", "Lütfen aramak için bir kitap adı veya ISBN girin.");
+    return;
+  }
+  setIsSearching(true);
+  setApiError(null);
+  setSearchResults([]);
+  console.log(`[AddBookScreen] Google Books API aranıyor: ${trimmedSearchTerm}`);
 
-    try {
-      // Google Books API'ye GET isteği
-      // API anahtarı gerekebilir, ancak basit aramalar genellikle anahtarsız çalışır.
-      // Eğer sorun yaşarsanız, Google Cloud Console'dan bir API anahtarı alıp
-      // &key=YOUR_API_KEY şeklinde URL'ye eklemeniz gerekebilir.
-      const response = await axios.get(`https://www.googleapis.com/books/v1/volumes?q=${encodeURIComponent(searchTerm)}&maxResults=10`);
+  let query = trimmedSearchTerm;
+  // Basit bir ISBN formatı kontrolü (10 veya 13 haneli sayılar, tire içerebilir)
+  const isbnRegex = /^(?=(?:\D*\d){10}(?:(?:\D*\d){3})?$)[\d-]+$/;
+  if (isbnRegex.test(trimmedSearchTerm)) {
+    // Kullanıcı büyük ihtimalle ISBN girdi, başına isbn: ekleyelim
+    // Tireleri ve boşlukları temizleyelim (API bazen tireli kabul etmeyebilir)
+    const cleanIsbn = trimmedSearchTerm.replace(/[- ]/g, '');
+    query = `isbn:${cleanIsbn}`;
+    console.log(`[AddBookScreen] ISBN sorgusu oluşturuldu: ${query}`);
+  }
+  // Eğer ISBN değilse, genel başlık/yazar araması olarak kalır
+
+  try {
+    const response = await axios.get(`https://www.googleapis.com/books/v1/volumes?q=${encodeURIComponent(query)}&maxResults=5`); 
 
       if (response.data && response.data.items) {
         setSearchResults(response.data.items);
