@@ -1,7 +1,8 @@
 // C:/Users/yunus/KitapligimApp/app/settings.tsx
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, StyleSheet, Button as RNButton, Alert, Platform, AppState, ActivityIndicator } from 'react-native';
+import { View, StyleSheet, Button as RNButton, Alert, Platform, AppState, ActivityIndicator, TouchableOpacity } from 'react-native'; // TouchableOpacity eklendi
+import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker'; // DateTimePicker importu
 import { Stack } from 'expo-router';
 import * as Notifications from 'expo-notifications';
 
@@ -33,6 +34,8 @@ export default function SettingsScreen() {
   const [notificationPermissionStatus, setNotificationPermissionStatus] = useState<Notifications.PermissionStatus | undefined>();
   const [isReminderScheduled, setIsReminderScheduled] = useState(false); // Hatırlatıcı planlı mı?
   const [isLoadingStatus, setIsLoadingStatus] = useState(true);
+  const [reminderTime, setReminderTime] = useState(new Date(new Date().setHours(20, 0, 0, 0))); // Başlangıçta 20:00
+  const [showTimePicker, setShowTimePicker] = useState(false);
 
   // İzinleri ve planlanmış bildirimi kontrol et
   const checkStatus = useCallback(async () => {
@@ -69,8 +72,18 @@ export default function SettingsScreen() {
     };
   }, [checkStatus]);
 
+  // Zaman seçici değiştiğinde tetiklenir
+  const onChangeTime = (event: DateTimePickerEvent, selectedDate?: Date) => {
+    const currentDate = selectedDate || reminderTime;
+    setShowTimePicker(Platform.OS === 'ios'); // iOS'ta seçiciyi kapatmak için farklı bir mantık gerekebilir
+    setReminderTime(currentDate);
+    console.log('[SettingsScreen] Yeni hatırlatıcı saati seçildi:', currentDate.toLocaleTimeString());
+    // Zaman değiştiğinde hatırlatıcıyı hemen yeniden planlayabiliriz veya bir "Kaydet" butonu ekleyebiliriz.
+    // Şimdilik sadece state'i güncelleyelim.
+  };
+
   // Bildirim izni isteme ve ardından hatırlatıcıyı planlama
-  const requestPermissionsAndScheduleReminder = async () => {
+  const requestPermissionsAndScheduleReminder = async (timeToSchedule: Date) => { // Parametre olarak timeToSchedule eklendi
     let currentStatus = notificationPermissionStatus;
     if (currentStatus !== 'granted') {
       console.log('[SettingsScreen] Bildirim izni isteniyor...');
@@ -82,16 +95,14 @@ export default function SettingsScreen() {
     }
 
     if (currentStatus === 'granted') {
-      console.log('[SettingsScreen] İzin verildi, günlük hatırlatıcı planlanıyor (20:00)...');
-      await Notifications.cancelAllScheduledNotificationsAsync(); // Önce tümünü iptal edelim (veya sadece ID ile)
-      // await Notifications.cancelScheduledNotificationAsync(DAILY_REMINDER_NOTIFICATION_ID); // Sadece bu ID'liyi iptal et
+      console.log(`[SettingsScreen] İzin verildi, günlük hatırlatıcı planlanıyor (${timeToSchedule.getHours()}:${String(timeToSchedule.getMinutes()).padStart(2, '0')})...`);
+      await Notifications.cancelAllScheduledNotificationsAsync();
 
       try {
-      
         const trigger: Notifications.NotificationTriggerInput = {
-          type: Notifications.SchedulableTriggerInputTypes.CALENDAR, // Use the enum member directly
-          hour: 20,
-          minute: 0,
+          type: Notifications.SchedulableTriggerInputTypes.CALENDAR,
+          hour: timeToSchedule.getHours(), // Seçilen saati kullan
+          minute: timeToSchedule.getMinutes(), // Seçilen dakikayı kullan
           repeats: true,
         };
    
@@ -107,7 +118,7 @@ export default function SettingsScreen() {
           trigger,
           identifier: DAILY_REMINDER_NOTIFICATION_ID,
         });
-        Alert.alert("Başarılı", "Günlük okuma hatırlatıcısı her gün 20:00 için ayarlandı.");
+        Alert.alert("Başarılı", `Günlük okuma hatırlatıcısı her gün ${String(timeToSchedule.getHours()).padStart(2, '0')}:${String(timeToSchedule.getMinutes()).padStart(2, '0')} için ayarlandı.`);
         setIsReminderScheduled(true); // State'i güncelle
         console.log('[SettingsScreen] Hatırlatıcı başarıyla planlandı.');
       } catch (error: any) {
@@ -134,6 +145,40 @@ export default function SettingsScreen() {
   const handleClearAllData = async () => { /* ... */ };
   const handleShowBookCount = async () => { /* ... */ };
 
+  // Kullanıcının hatırlatıcıyı ayarlamasını sağlayacak fonksiyon
+  const handleSetReminder = async () => {
+    if (notificationPermissionStatus === 'granted') {
+      await requestPermissionsAndScheduleReminder(reminderTime);
+      Alert.alert('Hatırlatıcı Ayarlandı', `Günlük hatırlatıcı saat ${reminderTime.getHours()}:${String(reminderTime.getMinutes()).padStart(2, '0')} olarak ayarlandı.`);
+      setIsReminderScheduled(true); // Durumu güncelle
+    } else {
+      // Bu else bloğu artık handleRequestPermissionFlow tarafından yönetilecek
+      // Alert.alert('İzin Gerekli', 'Hatırlatıcı ayarlamak için lütfen bildirim izinlerini etkinleştirin.');
+      console.log('[SettingsScreen] Hatırlatıcı ayarlamak için izin gerekli, izin isteme akışı başlatılıyor.');
+      await handleRequestPermissionFlow(); // Yeni fonksiyonu çağır
+    }
+  };
+
+  // Yeni: İzin isteme ve ardından hatırlatıcı ayarlama akışını yöneten fonksiyon
+  const handleRequestPermissionFlow = async () => {
+    console.log('[SettingsScreen] Bildirim izni isteniyor (akış)...');
+    const { status } = await Notifications.requestPermissionsAsync({
+      ios: { allowAlert: true, allowBadge: false, allowSound: true },
+    });
+    setNotificationPermissionStatus(status);
+    if (status === 'granted') {
+      console.log('[SettingsScreen] İzin verildi (akış), hatırlatıcı ayarlanıyor...');
+      // handleSetReminder'ı doğrudan çağırmak yerine, içindeki mantığı burada tekrarlayabiliriz
+      // veya handleSetReminder'ın sadece izinliyse çalışan kısmını çağırabiliriz.
+      // Şimdilik, izin alındıktan sonra doğrudan planlama yapalım.
+      await requestPermissionsAndScheduleReminder(reminderTime);
+      Alert.alert('Hatırlatıcı Ayarlandı', `Günlük hatırlatıcı saat ${reminderTime.getHours()}:${String(reminderTime.getMinutes()).padStart(2, '0')} olarak ayarlandı.`);
+      setIsReminderScheduled(true);
+    } else {
+      Alert.alert('İzin Reddedildi', 'Bildirim izinleri verilmediği için hatırlatıcı ayarlanamadı.');
+    }
+  };
+
   return (
     <ThemedView style={styles.container}>
       <Stack.Screen options={{ title: 'Ayarlar' }} />
@@ -148,7 +193,9 @@ export default function SettingsScreen() {
           isReminderScheduled ? (
             // Hatırlatıcı zaten planlıysa:
             <View style={styles.settingItem}>
-              <ThemedText style={styles.settingText}>Günlük hatırlatıcı 20:00 için ayarlı.</ThemedText>
+              <ThemedText style={styles.settingText}>
+                Günlük hatırlatıcı {`${String(reminderTime.getHours()).padStart(2, '0')}:${String(reminderTime.getMinutes()).padStart(2, '0')}`} için ayarlı.
+              </ThemedText>
               <RNButton
                 title="Hatırlatıcıyı İptal Et"
                 onPress={cancelDailyReminder}
@@ -159,8 +206,8 @@ export default function SettingsScreen() {
             // Hatırlatıcı planlı değilse:
             <View style={styles.settingItem}>
               <RNButton
-                title="Günlük Hatırlatıcı Ayarla (20:00)"
-                onPress={requestPermissionsAndScheduleReminder} // Bu fonksiyon hem izin ister (gerekirse) hem de planlar
+                title={`Günlük Hatırlatıcı Ayarla (${String(reminderTime.getHours()).padStart(2, '0')}:${String(reminderTime.getMinutes()).padStart(2, '0')})`}
+                onPress={() => requestPermissionsAndScheduleReminder(reminderTime)} // Düzeltme: Fonksiyonu arrow function ile çağır
                 color={Colors[colorScheme ?? 'light'].tint}
               />
             </View>
@@ -170,7 +217,7 @@ export default function SettingsScreen() {
           <View style={styles.settingItem}>
             <RNButton
               title="Bildirim İzni İste ve Hatırlatıcı Ayarla"
-              onPress={requestPermissionsAndScheduleReminder}
+              onPress={() => requestPermissionsAndScheduleReminder(reminderTime)} // Düzeltme: Fonksiyonu arrow function ile çağır
               color={Colors[colorScheme ?? 'light'].tint}
             />
             <ThemedText style={styles.permissionText}>
@@ -182,6 +229,36 @@ export default function SettingsScreen() {
         )}
       </View>
 
+      {/* Zaman Seçici ve Ayarlama Butonu */} 
+      {notificationPermissionStatus === 'granted' && (
+        <View style={styles.section}>
+          <ThemedText type="defaultSemiBold" style={styles.sectionTitle}>Hatırlatıcı Saati</ThemedText>
+          <TouchableOpacity onPress={() => setShowTimePicker(true)} style={styles.timePickerButton}>
+            <ThemedText style={styles.timePickerButtonText}>
+              Saat Seç: {`${String(reminderTime.getHours()).padStart(2, '0')}:${String(reminderTime.getMinutes()).padStart(2, '0')}`}
+            </ThemedText>
+          </TouchableOpacity>
+          {showTimePicker && (
+            <DateTimePicker
+              testID="dateTimePicker"
+              value={reminderTime}
+              mode="time"
+              is24Hour={true}
+              display="default"
+              onChange={onChangeTime}
+            />
+          )}
+          <RNButton
+            title="Seçili Saatte Hatırlatıcı Ayarla/Güncelle"
+            onPress={handleSetReminder} // Bu fonksiyon zaten reminderTime'ı kullanıyor
+            color={Colors[colorScheme ?? 'light'].tint}
+            disabled={isReminderScheduled && 
+                        new Date(new Date().setHours(reminderTime.getHours(), reminderTime.getMinutes(),0,0)).getTime() === 
+                        new Date(new Date().setHours(20,0,0,0)).getTime() // Eğer mevcut hatırlatıcı 20:00 ise ve seçili saat de 20:00 ise butonu pasif yapabiliriz (opsiyonel)
+                      }
+          />
+        </View>
+      )}
       <View style={styles.section}>
         <ThemedText type="defaultSemiBold" style={styles.sectionTitle}>Veri Yönetimi</ThemedText>
         <View style={styles.settingItem}>
@@ -204,11 +281,54 @@ export default function SettingsScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, padding: 20 },
-  pageTitle: { marginBottom: 20, textAlign: 'center' },
-  section: { marginBottom: 25, paddingBottom: 15, borderBottomWidth: 1, borderBottomColor: '#e0e0e0' },
-  sectionTitle: { fontSize: 18, marginBottom: 15, fontWeight: '600' },
-  settingItem: { marginBottom: 15, },
-  settingText: { fontSize: 16, marginBottom: 10, lineHeight: 22 },
-  permissionText: { fontSize: 14, color: '#666', textAlign: 'center', marginTop: 8 },
+  container: {
+    flex: 1,
+    padding: 20,
+  },
+  pageTitle: {
+    marginBottom: 20,
+    textAlign: 'center',
+  },
+  section: {
+    marginBottom: 20,
+    paddingBottom: 15,
+    borderBottomWidth: 1,
+    borderBottomColor: '#eee', // Açık bir ayırıcı renk
+  },
+  sectionTitle: {
+    fontSize: 18,
+    marginBottom: 10,
+  },
+  settingItem: {
+    marginBottom: 15,
+    // flexDirection: 'row', // Buton ve metni yan yana getirmek için gerekebilir
+    // alignItems: 'center', // Dikeyde ortalamak için
+    // justifyContent: 'space-between', // Aralarına boşluk koymak için
+  },
+  settingText: {
+    fontSize: 16,
+    marginBottom: 5, // Butonla arasında biraz boşluk için
+    // flex: 1, // Eğer flexDirection: 'row' kullanılırsa metnin kalan alanı kaplaması için
+  },
+  permissionText: {
+    marginTop: 5,
+    fontSize: 14,
+    fontStyle: 'italic',
+  },
+  timePickerButton: { // YENİ EKLEDİ
+    paddingVertical: 10,
+    paddingHorizontal: 15,
+    backgroundColor: Colors.light.tint, // Temadan renk alabiliriz
+    borderRadius: 5,
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  timePickerButtonText: { // YENİ EKLEDİ
+    color: '#fff', // Buton içindeki yazı rengi
+    fontSize: 16,
+  },
+  // Diğer veri yönetimi butonları için stiller (opsiyonel)
+  dataManagementButton: {
+    marginTop: 10, // Butonlar arası boşluk
+  },
 });
